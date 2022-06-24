@@ -628,16 +628,16 @@ def train(args, model, tokenizer):
                                        0] and args.save_steps > 0 and global_step % args.save_steps == 0:  # valid for bert/spanbert
                     update = True
                     # Save model checkpoint
-                    # if args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
-                    #     results = evaluate(args, model, tokenizer)
-                    #     f1 = results['f1_with_ner']
-                    #     tb_writer.add_scalar('f1_with_ner', f1, global_step)
-                    #
-                    #     if f1 > best_f1:
-                    #         best_f1 = f1
-                    #         print('Best F1', best_f1)
-                    #     else:
-                    #         update = False
+                    if args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
+                        results = evaluate(args, model, tokenizer)
+                        # f1 = results['f1_with_ner']
+                        # tb_writer.add_scalar('f1_with_ner', f1, global_step)
+                        #
+                        # if f1 > best_f1:
+                        #     best_f1 = f1
+                        #     print('Best F1', best_f1)
+                        # else:
+                        #     update = False
 
                     if update:
                         checkpoint_prefix = 'checkpoint'
@@ -1144,12 +1144,12 @@ def main():
         update = True
         # if args.evaluate_during_training:
         #     results = evaluate(args, model, tokenizer)
-        #     f1 = results['f1_with_ner']
-        #     if f1 > best_f1:
-        #         best_f1 = f1
-        #         print('Best F1', best_f1)
-        #     else:
-        #         update = False
+            # f1 = results['f1_with_ner']
+            # if f1 > best_f1:
+            #     best_f1 = f1
+            #     print('Best F1', best_f1)
+            # else:
+            #     update = False
 
         if update:
             checkpoint_prefix = 'checkpoint'
@@ -1177,9 +1177,9 @@ def main():
 
         WEIGHTS_NAME = 'pytorch_model.bin'
 
-        # if args.eval_all_checkpoints:
-        #     checkpoints = list(
-        #         os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + '/**/' + WEIGHTS_NAME, recursive=True)))
+        if args.eval_all_checkpoints:
+            checkpoints = list(
+                os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + '/**/' + WEIGHTS_NAME, recursive=True)))
 
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
@@ -1188,11 +1188,11 @@ def main():
             model = model_class.from_pretrained(checkpoint, config=config)
 
             model.to(args.device)
-            # result = evaluate(args, model, tokenizer, prefix=global_step, do_test=not args.no_test)
-            result = evaluate(args, model, tokenizer, prefix=global_step, do_test=True)  # 直接预测
+            result = evaluate(args, model, tokenizer, prefix=global_step, do_test=not args.no_test)
+            # result = evaluate(args, model, tokenizer, prefix=global_step, do_test=True)  # 直接预测
             # result = dict((k + '_{}'.format(global_step), v) for k, v in result.items())
             # results.update(result)
-        print(results)
+        # print(results)
 
         # output_eval_file = os.path.join(args.output_dir, "results.json")
         # json.dump(results, open(output_eval_file, "w"))
@@ -1202,12 +1202,25 @@ if __name__ == "__main__":
     main()
 
 
+# export OMP_NUM_THREADS=1
 
-# CUDA_VISIBLE_DEVICES=0  python run_mydataset_re.py  --model_type bertsub  \
+## 单gpu或者cpu
+# CUDA_VISIBLE_DEVICES=0  python3 run_mydataset_re.py  --model_type bertsub  \
 #     --model_name_or_path  ../bert_models/roberta_zh_l6_pytorch  --do_lower_case  \
 #     --data_dir ../datasets/my_dataset_processed  \
-#     --learning_rate 2e-5  --num_train_epochs 3  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
-#     --max_seq_length 512  --max_pair_length 16  --save_steps 2500  \
-#     --do_train  --do_eval    --eval_all_checkpoints  --eval_logsoftmax  \
-#     --seed 1      \
+#     --learning_rate 2e-5  --num_train_epochs 1  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
+#     --max_seq_length 512  --max_pair_length 16   \
+#     --do_train  --do_eval --eval_all_checkpoints   --eval_logsoftmax  \
+#     --seed 1   --test_file ner_pred_result.json   --lminit --use_ner_results \
+#     --output_dir bert_models/re-roberta-zh-1  --overwrite_output_dir
+#
+
+## 多gpu
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python3 -m torch.distributed.launch --nproc_per_node=8 run_mydataset_re.py --model_type bertsub  \
+#     --model_name_or_path  ../bert_models/roberta_zh_l6_pytorch  --do_lower_case  \
+#     --data_dir ../datasets/my_dataset_processed  \
+#     --learning_rate 2e-5  --num_train_epochs 10  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
+#     --max_seq_length 512  --max_pair_length 16   \
+#     --do_train --do_eval --eval_all_checkpoints   --eval_logsoftmax --use_ner_results  \
+#     --seed 1   --test_file ner_pred_result.json   --lminit \
 #     --output_dir bert_models/re-roberta-zh-1  --overwrite_output_dir

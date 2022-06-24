@@ -58,7 +58,7 @@ import itertools
 import timeit
 
 from tqdm import tqdm
-
+os.environ['OMP_NUM_THREADS'] = "1"
 logger = logging.getLogger(__name__)
 
 

@@ -709,17 +709,17 @@ def evaluate(args, model, tokenizer, prefix="", do_test=False):
     evalTime = timeit.default_timer() - start_time
     logger.info("  Evaluation done in total %f secs (%f example per second)", evalTime, len(eval_dataset) / evalTime)
 
-    precision_score = p = cor / tot_pred if tot_pred > 0 else 0
-    recall_score = r = cor / ner_tot_recall
-    f1 = 2 * (p * r) / (p + r) if cor > 0 else 0.0
-
-    p = cor_tot / tot_pred_tot if tot_pred_tot > 0 else 0
-    r = cor_tot / ner_tot_recall
-    f1_tot = 2 * (p * r) / (p + r) if cor > 0 else 0.0
-
-    results = {'f1': f1, 'f1_overlap': f1_tot, 'precision': precision_score, 'recall': recall_score}
-
-    logger.info("Result: %s", json.dumps(results))
+    # precision_score = p = cor / tot_pred if tot_pred > 0 else 0
+    # recall_score = r = cor / ner_tot_recall
+    # f1 = 2 * (p * r) / (p + r) if cor > 0 else 0.0
+    #
+    # p = cor_tot / tot_pred_tot if tot_pred_tot > 0 else 0
+    # r = cor_tot / ner_tot_recall
+    # f1_tot = 2 * (p * r) / (p + r) if cor > 0 else 0.0
+    #
+    # results = {'f1': f1, 'f1_overlap': f1_tot, 'precision': precision_score, 'recall': recall_score}
+    #
+    # logger.info("Result: %s", json.dumps(results))
 
     if args.output_results and (do_test or not args.do_train):
         f = open(eval_dataset.file_path)
@@ -960,14 +960,14 @@ def main():
         if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(args.output_dir)
         update = True
-        if args.evaluate_during_training:
-            results = evaluate(args, model, tokenizer)
-            f1 = results['f1']
-            if f1 > best_f1:
-                best_f1 = f1
-                print('Best F1', best_f1)
-            else:
-                update = False
+        # if args.evaluate_during_training:
+        #     results = evaluate(args, model, tokenizer)
+        #     f1 = results['f1']
+        #     if f1 > best_f1:
+        #         best_f1 = f1
+        #         print('Best F1', best_f1)
+        #     else:
+        #         update = False
 
         if update:
             checkpoint_prefix = 'checkpoint'
@@ -1007,8 +1007,8 @@ def main():
             model = model_class.from_pretrained(checkpoint, config=config)
 
             model.to(args.device)
-            # result = evaluate(args, model, tokenizer, prefix=global_step, do_test=not args.no_test)
-            result = evaluate(args, model, tokenizer, prefix=global_step, do_test=False)
+            result = evaluate(args, model, tokenizer, prefix=global_step, do_test=not args.no_test)
+            # result = evaluate(args, model, tokenizer, prefix=global_step, do_test=False)
 
             result = dict((k + '_{}'.format(global_step), v) for k, v in result.items())
             results.update(result)
@@ -1023,12 +1023,23 @@ if __name__ == "__main__":
     main()
 
 
-# CUDA_VISIBLE_DEVICES=0 python  run_mydataset_ner.py  --model_type bertspanmarker  \
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python3 -m torch.distributed.launch --nproc_per_node=8 run_mydataset_ner.py  --model_type bertspanmarker  \
 #     --model_name_or_path  ../bert_models/roberta_zh_l6_pytorch  --do_lower_case  \
 #     --data_dir ../datasets/my_dataset_processed  \
-#     --learning_rate 2e-5  --num_train_epochs 2  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
+#     --learning_rate 2e-5  --num_train_epochs 5  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
 #     --max_seq_length 512  --save_steps 2000  --max_pair_length 128  --max_mention_ori_length 8    \
-#     --do_train  --do_eval  --evaluate_during_training   --eval_all_checkpoints  \
+#     --do_train  --do_eval   --eval_all_checkpoints  \
 #      --seed 10  --onedropout  --lminit  \
-#     --train_file train.json --dev_file dev.json  \
+#     --train_file train.json --test_file test.json  \
+#     --output_dir bert_models/PL-Marker-roberta-zh-10  --overwrite_output_dir  --output_results
+
+
+# CUDA_VISIBLE_DEVICES=0 python3  run_mydataset_ner.py  --model_type bertspanmarker  \
+#     --model_name_or_path  ../bert_models/roberta_zh_l6_pytorch  --do_lower_case  \
+#     --data_dir ../datasets/my_dataset_processed  \
+#     --learning_rate 2e-5  --num_train_epochs 5  --per_gpu_train_batch_size  8  --per_gpu_eval_batch_size 16  --gradient_accumulation_steps 1  \
+#     --max_seq_length 512  --save_steps 2000  --max_pair_length 128  --max_mention_ori_length 8    \
+#     --do_train  --do_eval   --eval_all_checkpoints  \
+#      --seed 10  --onedropout  --lminit  \
+#     --train_file train.json --test_file test.json  \
 #     --output_dir bert_models/PL-Marker-roberta-zh-10  --overwrite_output_dir  --output_results
